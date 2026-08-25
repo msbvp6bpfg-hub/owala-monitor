@@ -2,8 +2,8 @@ name: Owala Auto Checker
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # 每 10 分鐘自動在雲端檢查一次
-  workflow_dispatch:        # 允許你在網頁上手動點擊立即執行
+    - cron: '*/5 * * * *'   # 已改為每 5 分鐘自動在雲端檢查一次
+  workflow_dispatch:         # 允許在網頁上手動觸發
 
 jobs:
   check-stock:
