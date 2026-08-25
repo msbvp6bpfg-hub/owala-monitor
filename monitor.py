@@ -121,12 +121,38 @@ def check_eslite_html(url: str):
     return False, "誠品 Owala"
 
 TARGET_LIST = [
-    {"store": "Finders", "url": "https://www.finders.com.tw/products/owala-freesip-24oz", "checker": check_finders_html},
-    {"store": "HOLA", "url": "https://www.hola.com.tw/p/014425080", "checker": check_hola_html},
-    {"store": "誠品 (款式1)", "url": "https://www.eslite.com/product/10052271402683070020000", "checker": check_eslite_html},
-    {"store": "誠品 (款式2)", "url": "https://www.eslite.com/product/10052271402683070019004", "checker": check_eslite_html},
-    {"store": "誠品 (款式3)", "url": "https://www.eslite.com/product/10052271402683070017000", "checker": check_eslite_html},
-    {"store": "誠品 (款式4)", "url": "https://www.eslite.com/product/10052271402683051103005", "checker": check_eslite_html},
+    # ==========================================
+    # 1. Finders 通路
+    # ==========================================
+    {"store": "Finders (FreeSip 24oz)", "url": "https://www.finders.com.tw/products/owala-freesip-24oz", "checker": check_finders_html},
+    {"store": "Finders (Tumbler 30oz)", "url": "https://www.finders.com.tw/products/owala-tumbler-30oz", "checker": check_finders_html},
+    {"store": "Finders (Sway 30oz)", "url": "https://www.finders.com.tw/products/owala-sway-30oz", "checker": check_finders_html},
+
+    # ==========================================
+    # 2. HOLA 通路
+    # ==========================================
+    {"store": "HOLA (FreeSip 24oz)", "url": "https://www.hola.com.tw/p/014425080", "checker": check_hola_html},
+
+    # ==========================================
+    # 3. 誠品線上 (Eslite) - FreeSip 不鏽鋼保溫杯
+    # ==========================================
+    {"store": "誠品 (不鏽鋼-冰河白)", "url": "https://www.eslite.com/product/10052271402683070020000", "checker": check_eslite_html},
+    {"store": "誠品 (不鏽鋼-繽紛雪酪)", "url": "https://www.eslite.com/product/10052271402683070019004", "checker": check_eslite_html},
+    {"store": "誠品 (不鏽鋼-極夜黑)", "url": "https://www.eslite.com/product/10052271402683070017000", "checker": check_eslite_html},
+    {"store": "誠品 (不鏽鋼-沙丘棕)", "url": "https://www.eslite.com/product/10052271402683051103005", "checker": check_eslite_html},
+
+    # ==========================================
+    # 4. 誠品線上 (Eslite) - FreeSip Tritan 透明款
+    # ==========================================
+    {"store": "誠品 (Tritan 款式1)", "url": "https://www.eslite.com/product/1005477542682299958002", "checker": check_eslite_html},
+    {"store": "誠品 (Tritan 款式2)", "url": "https://www.eslite.com/product/10052271402683055269004", "checker": check_eslite_html},
+
+    # ==========================================
+    # 5. 誠品線上 (Eslite) - FreeSip Sway 系列
+    # ==========================================
+    {"store": "誠品 (Sway 款式1)", "url": "https://www.eslite.com/product/10052271402683097131000", "checker": check_eslite_html},
+    {"store": "誠品 (Sway 款式2)", "url": "https://www.eslite.com/product/10052271402683097106008", "checker": check_eslite_html},
+    {"store": "誠品 (Sway 款式3)", "url": "https://www.eslite.com/product/10052271402683097107005", "checker": check_eslite_html},
 ]
 
 def main():
