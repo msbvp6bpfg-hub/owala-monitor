@@ -2,7 +2,7 @@ name: Owala Auto Checker
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # 每 30 分鐘啟動一次，每次內部精準循環 25 分鐘
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -38,4 +38,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add stock_state.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update stock state" && git push)
+          git diff --quiet && git diff --staged --quiet || (git pull --rebase origin main && git commit -m "Update stock state" && git push)
