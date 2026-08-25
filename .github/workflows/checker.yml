@@ -2,7 +2,7 @@ name: Owala Auto Checker
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/30 * * * *'  # 每 30 分鐘啟動一次，每次內部精準循環 25 分鐘
   workflow_dispatch:
 
 permissions:
@@ -12,7 +12,7 @@ jobs:
   check-stock:
     runs-on: ubuntu-latest
     env:
-      ACTIONS_NODE20_FORCE_DISABLE_DEPRECATION_WARNING: 'true'  # 隱藏 Node.js 升級提醒
+      ACTIONS_NODE20_FORCE_DISABLE_DEPRECATION_WARNING: 'true'
     steps:
       - name: 下載代碼
         uses: actions/checkout@v4
