@@ -164,6 +164,7 @@ TARGET_LIST = [
     {"store": "Finders (FreeSip 24oz)", "url": "https://www.finders.com.tw/products/owala-freesip-24oz", "checker": check_finders_html},
     {"store": "Finders (Tumbler 30oz)", "url": "https://www.finders.com.tw/products/owala-tumbler-30oz", "checker": check_finders_html},
     {"store": "Finders (Sway 30oz)", "url": "https://www.finders.com.tw/products/owala-sway-30oz", "checker": check_finders_html},
+    {"store": "Finders Owala® FreeSip 杯蓋 |含矽膠墊圈", "url": "https://www.finders.com.tw/products/owala-freesip-lid", "checker": check_finders_html},
 
     # ------------------ HOLA 通路 ------------------
     {"store": "HOLA (FreeSip 24oz)", "url": "https://www.hola.com.tw/p/014425080", "checker": check_hola_html},
