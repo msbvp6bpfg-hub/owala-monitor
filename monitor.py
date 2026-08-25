@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import time
 from bs4 import BeautifulSoup
 from curl_cffi import requests
@@ -11,9 +12,28 @@ from linebot.v3.messaging import (
     TextMessage
 )
 
-# 從 GitHub Secrets 環境變數讀取金鑰
+# 從環境變數讀取 LINE 金鑰
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "")
 LINE_USER_ID = os.getenv("LINE_USER_ID", "")
+STATE_FILE = "stock_state.json"
+
+def load_state():
+    """讀取上一次的庫存狀態"""
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_state(state):
+    """儲存當前庫存狀態"""
+    try:
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"⚠️ 儲存狀態失敗: {e}")
 
 def send_line_notification(store: str, title: str, url: str):
     """發送 LINE 補貨推播"""
@@ -45,12 +65,6 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
 }
-
-def notify(store: str, title: str, url: str):
-    print("\n" + "🔥" * 25)
-    print(f"🎉 【Owala 補貨通知】\n通路：{store}\n商品：{title}\n連結：{url}")
-    print("🔥" * 25 + "\n")
-    send_line_notification(store, title, url)
 
 def check_finders_html(url: str):
     try:
@@ -119,21 +133,32 @@ def main():
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{now}] 🚀 開始執行庫存掃描...")
     
+    prev_state = load_state()
+    curr_state = {}
+    
     for item in TARGET_LIST:
         store = item["store"]
         url = item["url"]
         checker = item["checker"]
         
         in_stock, product_name = checker(url)
+        curr_state[url] = in_stock
+        
+        was_in_stock = prev_state.get(url, False)
         
         if in_stock:
-            notify(store, product_name, url)
+            if not was_in_stock:
+                print(f"\n🎉 [{store}] 新補貨上架！發送 LINE 通知: {product_name}")
+                send_line_notification(store, product_name, url)
+            else:
+                print(f"  ✨ [{store}] 依然有貨（已通知過，略過重複推播）- {product_name}")
         else:
             print(f"  💤 [{store}] 缺貨中 - {product_name}")
             
         time.sleep(1)
         
-    print(f"[{now}] ✅ 掃描完成！")
+    save_state(curr_state)
+    print(f"[{now}] ✅ 掃描完成並更新狀態檔！")
 
 if __name__ == "__main__":
     main()
