@@ -2,8 +2,11 @@ name: Owala Auto Checker
 
 on:
   schedule:
-    - cron: '*/5 * * * *'   # 已改為每 5 分鐘自動在雲端檢查一次
-  workflow_dispatch:         # 允許在網頁上手動觸發
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   check-stock:
@@ -27,3 +30,10 @@ jobs:
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
         run: |
           python monitor.py
+
+      - name: 儲存並更新庫存狀態
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add stock_state.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update stock state" && git push)
