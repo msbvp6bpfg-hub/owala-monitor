@@ -161,8 +161,6 @@ def main():
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{now}] 🚀 執行單輪庫存掃描...")
 
-    # 🧪 臨時測試 LINE 連線（收到測試訊息後可刪除此行）
-    send_line_notification("系統測試", "LINE 連線測試正常！", "https://www.google.com")
     
     prev_state = load_state()
     curr_state = {}
