@@ -127,7 +127,8 @@ TARGET_LIST = [
     # ==========================================
     {"store": "Finders (FreeSip 24oz)", "url": "https://www.finders.com.tw/products/owala-freesip-24oz", "checker": check_finders_html},
     {"store": "Finders (Tumbler 30oz)", "url": "https://www.finders.com.tw/products/owala-tumbler-30oz", "checker": check_finders_html},
-    {"store": "Finders (Sway 30oz)", "url": "https://www.finders.com.tw/products/owala-sway-30oz", "checker": check_finders_html},
+    {"store": "Finders (Tritan 25oz)", "url": "https://www.finders.com.tw/products/owala-freesip-tritan-25oz", "checker": check_finders_html},
+    {"store": "Finders (Freesip 32oz)", "url": "https://www.finders.com.tw/products/owala-freesip-32oz", "checker": check_finders_html},
 
     # ==========================================
     # 2. HOLA 通路
