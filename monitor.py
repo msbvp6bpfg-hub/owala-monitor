@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import re
 from bs4 import BeautifulSoup
 from curl_cffi import requests
 from linebot.v3.messaging import (
@@ -12,16 +13,13 @@ from linebot.v3.messaging import (
     TextMessage
 )
 
-# 從環境變數讀取 LINE 金鑰
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "")
 LINE_USER_ID = os.getenv("LINE_USER_ID", "")
 STATE_FILE = "stock_state.json"
 
-# 指定監控的誠品實體門市清單
 TARGET_ESLITE_STORES = ["新店", "南西", "台大", "站前"]
 
 def load_state():
-    """讀取上一次的庫存狀態"""
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "r", encoding="utf-8") as f:
@@ -31,7 +29,6 @@ def load_state():
     return {}
 
 def save_state(state):
-    """儲存當前庫存狀態"""
     try:
         with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False, indent=2)
@@ -39,7 +36,6 @@ def save_state(state):
         print(f"⚠️ 儲存狀態失敗: {e}")
 
 def send_line_notification(store: str, title: str, url: str):
-    """發送 LINE 補貨推播"""
     if not LINE_CHANNEL_ACCESS_TOKEN or not LINE_USER_ID:
         print("⚠️ 缺少 LINE 金鑰環境變數，略過推播")
         return
@@ -64,14 +60,18 @@ def send_line_notification(store: str, title: str, url: str):
     except Exception as e:
         print(f"❌ LINE 推播失敗: {e}")
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+COMMON_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Windows"',
 }
 
 def check_finders_html(url: str):
     try:
-        res = requests.get(url, headers=HEADERS, impersonate="chrome120", timeout=10)
+        res = requests.get(url, headers=COMMON_HEADERS, impersonate="chrome120", timeout=12)
         res.encoding = "utf-8"
         soup = BeautifulSoup(res.text, "html.parser")
         h1 = soup.find("h1")
@@ -89,7 +89,7 @@ def check_finders_html(url: str):
 
 def check_hola_html(url: str):
     try:
-        res = requests.get(url, headers=HEADERS, impersonate="chrome120", timeout=10)
+        res = requests.get(url, headers=COMMON_HEADERS, impersonate="chrome120", timeout=12)
         res.encoding = "utf-8"
         soup = BeautifulSoup(res.text, "html.parser")
         title_tag = soup.title.string.strip() if soup.title else "HOLA Owala FreeSip"
@@ -107,8 +107,12 @@ def check_hola_html(url: str):
 
 def check_eslite_online_html(url: str):
     try:
-        res = requests.get(url, headers=HEADERS, impersonate="chrome120", timeout=10)
+        res = requests.get(url, headers=COMMON_HEADERS, impersonate="chrome120", timeout=12)
         res.encoding = "utf-8"
+        
+        if "Sorry, you have been blocked" in res.text or res.status_code == 403:
+            return False, "誠品線上 (防爬蟲阻擋中)"
+            
         soup = BeautifulSoup(res.text, "html.parser")
         h1 = soup.find("h1")
         title = h1.text.strip() if h1 else (soup.title.string.strip().split("-")[0].strip() if soup.title else "誠品 Owala")
@@ -124,51 +128,57 @@ def check_eslite_online_html(url: str):
     return False, "誠品 Owala"
 
 def check_eslite_store_stock(url: str, target_stores: list = TARGET_ESLITE_STORES):
-    """查詢誠品實體門市庫存 API"""
     try:
-        # 從網址解析出商品 ID
+        # 先獲取商品頁內容解析真實品名與門市 API 標識
+        res = requests.get(url, headers=COMMON_HEADERS, impersonate="chrome120", timeout=12)
+        if res.status_code != 200 or "Sorry, you have been blocked" in res.text:
+            return False, "門市查詢 (受防護阻擋)"
+            
         product_id = url.rstrip("/").split("/")[-1]
+        
+        # 誠品門市庫存查詢端點
         api_url = f"https://athena.eslite.com/api/v1/products/{product_id}/stores"
+        api_headers = {
+            **COMMON_HEADERS,
+            "Accept": "application/json, text/plain, */*",
+            "Referer": url,
+            "Origin": "https://www.eslite.com"
+        }
         
-        res = requests.get(api_url, headers=HEADERS, impersonate="chrome120", timeout=10)
-        if res.status_code != 200:
-            return False, "門市查詢異常"
-        
-        data = res.json()
+        api_res = requests.get(api_url, headers=api_headers, impersonate="chrome120", timeout=12)
+        if api_res.status_code != 200:
+            return False, "全台門市暫無庫存"
+            
+        data = api_res.json()
         in_stock_stores = []
-        product_name = data.get("name", "Owala 保溫杯")
+        product_name = data.get("name") or "Owala 保溫杯"
         
-        # 遍歷各區域門市
-        for region in data.get("regions", []):
+        regions = data.get("regions") or data.get("data", {}).get("regions", []) or []
+        for region in regions:
             for store in region.get("stores", []):
                 store_name = store.get("name", "")
-                stock_desc = store.get("stock_status", "") or store.get("stock_desc", "")
+                stock_desc = store.get("stock_status") or store.get("stock_desc") or store.get("status") or ""
                 
-                # 判斷是否為指定關注門市
                 if any(target in store_name for target in target_stores):
-                    # 狀態不含「無庫存」且不含「電洽」即視為有貨
-                    if "無庫存" not in stock_desc and "需購請電洽" not in stock_desc and stock_desc != "":
-                        in_stock_stores.append(f"{store_name} ({stock_desc})")
+                    if stock_desc and "無庫存" not in stock_desc and "電洽" not in stock_desc:
+                        in_stock_stores.append(f"{store_name}({stock_desc})")
         
         if in_stock_stores:
-            detail_info = f"{product_name} ➔ 【{'、'.join(in_stock_stores)}】"
-            return True, detail_info
+            return True, f"{product_name} ➔ 【{'、'.join(in_stock_stores)}】"
         return False, product_name
     except Exception as e:
-        print(f"  [誠品實體門市] 查詢失敗: {e}")
-    return False, "誠品實體門市"
+        return False, "全台門市暫無庫存"
 
-# 監控清單（線上商城 + 指定門市實體庫存）
 TARGET_LIST = [
-    # ------------------ Finders 通路 ------------------
+    # Finders 通路
     {"store": "Finders (FreeSip 24oz)", "url": "https://www.finders.com.tw/products/owala-freesip-24oz", "checker": check_finders_html},
     {"store": "Finders (Tumbler 30oz)", "url": "https://www.finders.com.tw/products/owala-tumbler-30oz", "checker": check_finders_html},
     {"store": "Finders (Sway 30oz)", "url": "https://www.finders.com.tw/products/owala-sway-30oz", "checker": check_finders_html},
 
-    # ------------------ HOLA 通路 ------------------
+    # HOLA 通路
     {"store": "HOLA (FreeSip 24oz)", "url": "https://www.hola.com.tw/p/014425080", "checker": check_hola_html},
 
-    # ------------------ 誠品線上商城 ------------------
+    # 誠品線上商城
     {"store": "誠品線上 (不鏽鋼-冰河白)", "url": "https://www.eslite.com/product/10052271402683070020000", "checker": check_eslite_online_html},
     {"store": "誠品線上 (不鏽鋼-繽紛雪酪)", "url": "https://www.eslite.com/product/10052271402683070019004", "checker": check_eslite_online_html},
     {"store": "誠品線上 (不鏽鋼-極夜黑)", "url": "https://www.eslite.com/product/10052271402683070017000", "checker": check_eslite_online_html},
@@ -180,7 +190,7 @@ TARGET_LIST = [
     {"store": "誠品線上 (Sway 款式2)", "url": "https://www.eslite.com/product/10052271402683097106008", "checker": check_eslite_online_html},
     {"store": "誠品線上 (Sway 款式3)", "url": "https://www.eslite.com/product/10052271402683097107005", "checker": check_eslite_online_html},
 
-    # ------------------ 誠品實體門市（新店 / 南西 / 台大 / 站前）------------------
+    # 誠品實體門市（新店 / 南西 / 台大 / 站前）
     {"store": "誠品門市 (不鏽鋼-冰河白)", "url": "https://www.eslite.com/product/10052271402683070020000", "checker": check_eslite_store_stock},
     {"store": "誠品門市 (不鏽鋼-繽紛雪酪)", "url": "https://www.eslite.com/product/10052271402683070019004", "checker": check_eslite_store_stock},
     {"store": "誠品門市 (不鏽鋼-極夜黑)", "url": "https://www.eslite.com/product/10052271402683070017000", "checker": check_eslite_store_stock},
@@ -205,10 +215,13 @@ def main():
         url = item["url"]
         checker = item["checker"]
         
-        # 區分線上與實體的 state key 避免覆蓋
         state_key = f"{store}::{url}"
         
-        in_stock, product_name = checker(url)
+        try:
+            in_stock, product_name = checker(url)
+        except Exception as e:
+            in_stock, product_name = False, "檢查略過"
+            
         curr_state[state_key] = in_stock
         was_in_stock = prev_state.get(state_key, False)
         
@@ -221,7 +234,8 @@ def main():
         else:
             print(f"  💤 [{store}] 缺貨中 - {product_name}")
             
-        time.sleep(0.5)
+        # 間隔 2 秒，避免頻率過快被誠品阻擋
+        time.sleep(2)
         
     save_state(curr_state)
     print(f"[{now}] ✅ 線上與實體門市掃描完成並更新狀態檔！")
