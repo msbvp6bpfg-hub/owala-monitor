@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: 下載代碼
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 設定 Python 環境
         uses: actions/setup-python@v5
@@ -34,7 +36,14 @@ jobs:
           python monitor.py
 
       - name: 儲存並更新庫存狀態
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Update stock state [skip ci]"
-          file_pattern: "stock_state.json"
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -f stock_state.json ]; then
+            git add stock_state.json
+            if ! git diff --staged --quiet; then
+              git commit -m "Update stock state [skip ci]"
+              git pull --rebase origin main
+              git push origin main
+            fi
+          fi
